@@ -1,9 +1,12 @@
 import importlib
+import logging
 import os
 
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv, find_dotenv
+
+logging.basicConfig(level=logging.INFO)
 
 load_dotenv(find_dotenv())
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
@@ -20,4 +23,3 @@ for x in os.listdir("handlers/"):
         handler.run(bot)
 
 bot.run(BOT_TOKEN)
-print("Bot started >>> GO,GO,GO!")

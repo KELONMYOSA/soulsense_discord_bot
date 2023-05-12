@@ -1,4 +1,8 @@
+import os
+
 import discord
+
+from utils.stream_sink import StreamSink
 
 connections = {}
 
@@ -19,8 +23,8 @@ async def join(ctx):
 
 async def rec_start(ctx, rec_type):
     if ctx.guild.id not in connections:
-        ctx.voice_client.start_recording(discord.sinks.WaveSink(), rec_stop_callback, ctx.channel)
         connections.update({ctx.guild.id: ctx.voice_client})
+        sink = StreamSink(ctx.guild.id)
 
         if rec_type == "emotions":
             em = discord.Embed(title="Запись начата!",
@@ -28,6 +32,10 @@ async def rec_start(ctx, rec_type):
         elif rec_type == "toxicity":
             em = discord.Embed(title="Запись начата!",
                                description="Выключить фильтр токсичности - `soul!toxicity_stop`", color=0x1f8b4c)
+        elif rec_type == "transcribe":
+            ctx.voice_client.start_recording(sink, rec_stop_callback_transcribe, ctx.channel)
+            em = discord.Embed(title="Запись начата!",
+                               description="Завершить распознавание речи - `soul!transcribe_stop`", color=0x1f8b4c)
 
         await ctx.send(embed=em)
     else:
@@ -40,18 +48,22 @@ async def rec_stop(ctx):
         vc = connections[ctx.guild.id]
         vc.stop_recording()
         del connections[ctx.guild.id]
+        os.rmdir(f'temp_voice/{ctx.guild.id}')
     else:
         em = discord.Embed(title="Запись еще не была начата!", color=0x992d22)
         await ctx.send(embed=em)
 
 
-async def rec_stop_callback(sink, channel):
+async def rec_stop_callback_transcribe(sink, channel):
     recorded_users = [
         f"<@{user_id}>"
-        for user_id, audio in sink.audio_data.items()
+        for user_id in sink.recorded_users
     ]
+
     await sink.vc.disconnect()
-    files = [discord.File(audio.file, f"{user_id}.{sink.encoding}") for user_id, audio in sink.audio_data.items()]
-    em = discord.Embed(title="Запись завершена!", description=f"В разговоре участвовали: {', '.join(recorded_users)}.",
+
+    em = discord.Embed(title="Запись завершена!",
+                       description=f"В разговоре участвовали: {', '.join(recorded_users)}.",
                        color=0x992d22)
-    await channel.send(embed=em, files=files)
+
+    await channel.send(embed=em)

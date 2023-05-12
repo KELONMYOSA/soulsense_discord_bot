@@ -21,7 +21,6 @@ class GoogleSpeechRecognition:
         file = speech_recognition.AudioFile(file_path)
         result = None
         with file as source:
-            self.r.adjust_for_ambient_noise(source)
             audio = self.r.record(source)
             try:
                 result = self.r.recognize_google(audio, language=self.lang)
@@ -45,7 +44,7 @@ class GoogleSpeechRecognition:
                     if func == 'txt':
                         with open(f'temp_voice/{self.guild_id}.txt', "a") as file:
                             member = await self.ctx.guild.fetch_member(user_id)
-                            file.write(f"{member}: {text}\n")
+                            file.write(f"<{member.name}>: {text}\n")
                     if func == 'live':
                         await self.ctx.send(f"<@{user_id}>: {text}")
 

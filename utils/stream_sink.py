@@ -22,11 +22,11 @@ class StreamSink(Sink):
         self.guild_id = guild_id
         self.buffer = StreamBuffer(guild_id)
         self.buffer.create_folder()
-        self.timer = Timer(2, self.check_write_interval)
+        self.timer = Timer(1, self.check_write_interval)
 
     def write(self, data, user):
         self.timer.cancel()
-        self.timer = Timer(2, self.check_write_interval)
+        self.timer = Timer(1, self.check_write_interval)
         if user not in self.recorded_users:
             self.recorded_users.append(user)
             self.buffer.audio_segment[user] = AudioSegment.empty()
@@ -47,7 +47,13 @@ class StreamSink(Sink):
     def check_write_interval(self):
         if self.guild_id in voice_recording.connections:
             for user in self.recorded_users:
+                append_audio_segment = AudioSegment(data=self.buffer.byte_buffer[user],
+                                                    sample_width=self.buffer.sample_width,
+                                                    frame_rate=self.buffer.sample_rate,
+                                                    channels=self.buffer.channels)
+                self.buffer.audio_segment[user] += append_audio_segment
                 self.buffer.flush_audio(user)
+                self.buffer.byte_buffer[user] = bytearray()
 
 
 class StreamBuffer:
@@ -89,13 +95,6 @@ class StreamBuffer:
 
     def flush_audio(self, user):
         if len(self.audio_segment[user]) != 0:
-            silence = detect_silence(self.audio_segment[user], min_silence_len=100,
-                                     silence_thresh=self.audio_segment[user].dBFS - 16)
-            audio_len = len(self.audio_segment[user])
-            silence_len = 0
-            for s in silence:
-                silence_len += s[1] - s[0]
-            if silence_len / audio_len < 0.8:
-                self.audio_segment[user].export(f"temp_voice/{self.guild_id}/"
-                                                f"{user}_{datetime.now().strftime('%Y%m%d%H%M%S')}.wav", format="wav")
-                self.audio_segment[user] = AudioSegment.empty()
+            self.audio_segment[user].export(f"temp_voice/{self.guild_id}/"
+                                            f"{user}_{datetime.now().strftime('%Y%m%d%H%M%S')}.wav", format="wav")
+            self.audio_segment[user] = AudioSegment.empty()

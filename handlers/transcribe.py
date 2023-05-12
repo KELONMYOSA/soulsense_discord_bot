@@ -12,7 +12,7 @@ def run(bot):
             return
 
         await rec_start(ctx, "transcribe_txt")
-        recognizer = GoogleSpeechRecognition('ru', ctx)
+        recognizer = GoogleSpeechRecognition('ru-RU', ctx)
         await recognizer.start_recognition('txt')
 
     @bot.command()
@@ -22,7 +22,7 @@ def run(bot):
             return
 
         await rec_start(ctx, "transcribe_live")
-        recognizer = GoogleSpeechRecognition('ru', ctx)
+        recognizer = GoogleSpeechRecognition('ru-RU', ctx)
         await recognizer.start_recognition('live')
 
     @bot.command()

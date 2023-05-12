@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from threading import Timer
 
 from discord.sinks.core import Filters, Sink, default_filters
@@ -22,15 +22,15 @@ class StreamSink(Sink):
         self.guild_id = guild_id
         self.buffer = StreamBuffer(guild_id)
         self.buffer.create_folder()
-        self.timer = Timer(5, self.check_write_interval)
+        self.timer = Timer(2, self.check_write_interval)
 
     def write(self, data, user):
         self.timer.cancel()
-        self.timer = Timer(5, self.check_write_interval)
+        self.timer = Timer(2, self.check_write_interval)
         if user not in self.recorded_users:
             self.recorded_users.append(user)
             self.buffer.audio_segment[user] = AudioSegment.empty()
-            self.buffer.last_write_time[user] = datetime.now()
+            self.buffer.byte_buffer[user] = bytearray()
 
         self.buffer.write(data=data, user=user)
         self.timer.start()
@@ -46,18 +46,15 @@ class StreamSink(Sink):
 
     def check_write_interval(self):
         if self.guild_id in voice_recording.connections:
-            for user in self.buffer.last_write_time:
-                if len(self.buffer.audio_segment[user]) != 0 and datetime.now() > self.buffer.last_write_time[user] + \
-                        timedelta(seconds=self.buffer.block_len):
-                    self.buffer.flush_audio(user)
+            for user in self.recorded_users:
+                self.buffer.flush_audio(user)
 
 
 class StreamBuffer:
     def __init__(self, guild_id) -> None:
         self.guild_id = guild_id
-        self.byte_buffer = bytearray()
+        self.byte_buffer = {}
         self.audio_segment = {}
-        self.last_write_time = {}
 
         self.sample_width = 2
         self.channels = 2
@@ -67,10 +64,10 @@ class StreamBuffer:
         self.buff_lim = self.bytes_ps * self.block_len
 
     def write(self, data, user):
-        self.byte_buffer += data
+        self.byte_buffer[user] += data
 
-        if len(self.byte_buffer) > self.buff_lim:
-            byte_slice = self.byte_buffer[:self.buff_lim]
+        if len(self.byte_buffer[user]) > self.buff_lim:
+            byte_slice = self.byte_buffer[user][:self.buff_lim]
 
             temp_audio_segment = AudioSegment(data=byte_slice,
                                               sample_width=self.sample_width,
@@ -82,11 +79,9 @@ class StreamBuffer:
             if len(silence) == 0:
                 self.audio_segment[user] += temp_audio_segment
             else:
-                if len(self.audio_segment[user]) > 1000:
-                    self.flush_audio(user)
+                self.flush_audio(user)
 
-            self.byte_buffer = self.byte_buffer[self.buff_lim:]
-            self.last_write_time[user] = datetime.now()
+            self.byte_buffer[user] = self.byte_buffer[user][self.buff_lim:]
 
     def create_folder(self):
         if not os.path.exists(f"temp_voice/{self.guild_id}"):

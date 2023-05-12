@@ -10,10 +10,11 @@ from utils import voice_recording
 
 
 class GoogleSpeechRecognition:
-    def __init__(self, lang, guild_id):
+    def __init__(self, lang, ctx):
         self.lang = lang
-        self.guild_id = guild_id
-        self.folder = f'temp_voice/{guild_id}'
+        self.ctx = ctx
+        self.guild_id = self.ctx.guild.id
+        self.folder = f'temp_voice/{self.guild_id}'
         self.r = speech_recognition.Recognizer()
 
     def recognize(self, file_path):
@@ -31,16 +32,22 @@ class GoogleSpeechRecognition:
 
         return result
 
-    async def start_recognition(self):
+    async def start_recognition(self, func):
         while self.guild_id in voice_recording.connections:
             files = [f for f in listdir(self.folder) if isfile(join(self.folder, f))]
 
             for f in files:
+                user_id = os.path.splitext(f)[0].split(sep='_')[0]
                 file_path = f'{self.folder}/{f}'
                 text = self.recognize(file_path)
                 os.remove(file_path)
                 if text is not None:
-                    print(text)
+                    if func == 'txt':
+                        with open(f'temp_voice/{self.guild_id}.txt', "a") as file:
+                            member = await self.ctx.guild.fetch_member(user_id)
+                            file.write(f"{member}: {text}\n")
+                    if func == 'live':
+                        await self.ctx.send(f"<@{user_id}>: {text}")
 
             if len(files) == 0:
                 await asyncio.sleep(1)

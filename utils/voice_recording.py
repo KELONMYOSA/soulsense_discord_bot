@@ -28,14 +28,18 @@ async def rec_start(ctx, rec_type):
 
         if rec_type == "emotions":
             em = discord.Embed(title="Запись начата!",
-                               description="Завершить анализ - `soul!emotions_stop`", color=0x1f8b4c)
+                               description="Завершить анализ - `soul!stop`", color=0x1f8b4c)
         elif rec_type == "toxicity":
             em = discord.Embed(title="Запись начата!",
-                               description="Выключить фильтр токсичности - `soul!toxicity_stop`", color=0x1f8b4c)
-        elif rec_type == "transcribe":
+                               description="Выключить фильтр токсичности - `soul!stop`", color=0x1f8b4c)
+        elif rec_type == "transcribe_txt":
+            ctx.voice_client.start_recording(sink, rec_stop_callback_transcribe_txt, ctx.channel)
+            em = discord.Embed(title="Запись начата!",
+                               description="Завершить распознавание речи - `soul!stop`", color=0x1f8b4c)
+        elif rec_type == "transcribe_live":
             ctx.voice_client.start_recording(sink, rec_stop_callback_transcribe, ctx.channel)
             em = discord.Embed(title="Запись начата!",
-                               description="Завершить распознавание речи - `soul!transcribe_stop`", color=0x1f8b4c)
+                               description="Завершить распознавание речи - `soul!stop`", color=0x1f8b4c)
 
         await ctx.send(embed=em)
     else:
@@ -67,3 +71,13 @@ async def rec_stop_callback_transcribe(sink, channel):
                        color=0x992d22)
 
     await channel.send(embed=em)
+
+
+async def rec_stop_callback_transcribe_txt(sink, channel):
+    await rec_stop_callback_transcribe(sink, channel)
+
+    file_path = f'temp_voice/{sink.guild_id}.txt'
+    file = discord.File(file_path)
+    file.filename = 'transcription.txt'
+    await channel.send(file=file)
+    os.remove(file_path)

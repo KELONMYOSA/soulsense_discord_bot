@@ -7,6 +7,8 @@ from pydub import AudioSegment
 
 from pydub.silence import detect_silence
 
+from utils import voice_recording
+
 
 class StreamSink(Sink):
     def __init__(self, guild_id, *, filters=None):
@@ -43,10 +45,11 @@ class StreamSink(Sink):
         pass
 
     def check_write_interval(self):
-        for user in self.buffer.last_write_time:
-            if len(self.buffer.audio_segment[user]) != 0 and datetime.now() > self.buffer.last_write_time[user] + \
-                    timedelta(seconds=self.buffer.block_len):
-                self.buffer.flush_audio(user)
+        if self.guild_id in voice_recording.connections:
+            for user in self.buffer.last_write_time:
+                if len(self.buffer.audio_segment[user]) != 0 and datetime.now() > self.buffer.last_write_time[user] + \
+                        timedelta(seconds=self.buffer.block_len):
+                    self.buffer.flush_audio(user)
 
 
 class StreamBuffer:

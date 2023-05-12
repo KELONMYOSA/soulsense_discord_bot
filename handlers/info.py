@@ -18,10 +18,11 @@ def run(bot):
     async def help(ctx):
         em = discord.Embed(title='Help',
                            description='`soul!help` - список команд\n'
-                                       '`soul!info` - описание бота\n'
-                                       '`soul!emotions_start` - начать анализ эмоций\n'
-                                       '`soul!emotions_stop` - завершить анализ и получить отчет\n'
-                                       '`soul!toxicity_start` - включить фильтр токсичности\n'
-                                       '`soul!toxicity_stop` - выключить фильтр токсичности\n',
+                                       '`soul!info` - описание бота\n\n'
+                                       '`soul!emotions` - начать анализ эмоций\n'
+                                       '`soul!toxicity` - включить фильтр токсичности\n'
+                                       '`soul!transcribe_txt` - расшифровка разговора в txt файл\n'
+                                       '`soul!transcribe_live` - расшифровка разговора в реальном времени\n\n'
+                                       '`soul!stop` - отключить от голосового канала\n',
                            colour=ctx.author.color)
         await ctx.send(embed=em)

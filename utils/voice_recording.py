@@ -2,9 +2,12 @@ import os
 
 import discord
 
+from utils.speech_to_text import SpeechRecognition
 from utils.stream_sink import StreamSink
 
 connections = {}
+recognizers = {}
+rec_types = {}
 
 
 async def join(ctx):
@@ -24,24 +27,31 @@ async def join(ctx):
 async def rec_start(ctx, rec_type):
     if ctx.guild.id not in connections:
         connections.update({ctx.guild.id: ctx.voice_client})
+        rec_types.update({ctx.guild.id: rec_type})
         sink = StreamSink(ctx.guild.id)
+        recognizer = SpeechRecognition(ctx)
+        recognizers.update({ctx.guild.id: recognizer})
+
+        ctx.voice_client.start_recording(sink, rec_stop_callback, ctx.channel)
 
         if rec_type == "emotions":
             em = discord.Embed(title="Запись начата!",
                                description="Завершить анализ - `soul!stop`", color=0x1f8b4c)
+            await ctx.send(embed=em)
         elif rec_type == "toxicity":
             em = discord.Embed(title="Запись начата!",
                                description="Выключить фильтр токсичности - `soul!stop`", color=0x1f8b4c)
+            await ctx.send(embed=em)
         elif rec_type == "transcribe_txt":
-            ctx.voice_client.start_recording(sink, rec_stop_callback_transcribe_txt, ctx.channel)
             em = discord.Embed(title="Запись начата!",
                                description="Завершить распознавание речи - `soul!stop`", color=0x1f8b4c)
+            await ctx.send(embed=em)
+            await recognizer.start_recognition('txt')
         elif rec_type == "transcribe_live":
-            ctx.voice_client.start_recording(sink, rec_stop_callback_transcribe, ctx.channel)
             em = discord.Embed(title="Запись начата!",
                                description="Завершить распознавание речи - `soul!stop`", color=0x1f8b4c)
-
-        await ctx.send(embed=em)
+            await ctx.send(embed=em)
+            await recognizer.start_recognition('live')
     else:
         em = discord.Embed(title="Запись уже начата!", color=0x992d22)
         await ctx.send(embed=em)
@@ -52,13 +62,19 @@ async def rec_stop(ctx):
         vc = connections[ctx.guild.id]
         vc.stop_recording()
         del connections[ctx.guild.id]
+        recognizer = recognizers[ctx.guild.id]
+        del recognizers[ctx.guild.id]
+        await recognizer.stop_recognition()
         os.rmdir(f'temp_voice/{ctx.guild.id}')
+        if rec_types[ctx.guild.id] == "transcribe_txt":
+            await send_transcribe_txt(ctx)
+            del rec_types[ctx.guild.id]
     else:
         em = discord.Embed(title="Запись еще не была начата!", color=0x992d22)
         await ctx.send(embed=em)
 
 
-async def rec_stop_callback_transcribe(sink, channel):
+async def rec_stop_callback(sink, channel):
     recorded_users = [
         f"<@{user_id}>"
         for user_id in sink.recorded_users
@@ -67,17 +83,19 @@ async def rec_stop_callback_transcribe(sink, channel):
     await sink.vc.disconnect()
 
     em = discord.Embed(title="Запись завершена!",
-                       description=f"В разговоре участвовали: {', '.join(recorded_users)}.",
+                       description=f"В разговоре участвовали: {', '.join(recorded_users)}.\n\n"
+                                   f"Как только результаты будут обработаны - я их отправлю.",
                        color=0x992d22)
 
     await channel.send(embed=em)
 
 
-async def rec_stop_callback_transcribe_txt(sink, channel):
-    await rec_stop_callback_transcribe(sink, channel)
-
-    file_path = f'temp_voice/{sink.guild_id}.txt'
-    file = discord.File(file_path)
-    file.filename = 'transcription.txt'
-    await channel.send(file=file)
-    os.remove(file_path)
+async def send_transcribe_txt(ctx):
+    file_path = f'temp_voice/{ctx.guild.id}.txt'
+    try:
+        file = discord.File(file_path)
+        file.filename = 'transcription.txt'
+        await ctx.send(file=file)
+        os.remove(file_path)
+    except FileNotFoundError:
+        print(f"File transcription.txt not found for guild ID-{ctx.guild.id}")

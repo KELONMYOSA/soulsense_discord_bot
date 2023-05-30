@@ -1,8 +1,12 @@
+import csv
 import aiohttp
 import asyncio
 import os
 from os import listdir
 from os.path import isfile, join
+from datetime import datetime
+
+from pydub import AudioSegment
 
 
 class SpeechRecognition:
@@ -11,6 +15,7 @@ class SpeechRecognition:
         self.guild_id = self.ctx.guild.id
         self.folder = f'temp_voice/{self.guild_id}'
         self.recognition_url = os.environ.get('RECOGNITION_URL')
+        self.emotion_url = os.environ.get('EMOTION_URL')
         self.is_running = True
         self.files_exist = True
 
@@ -24,6 +29,16 @@ class SpeechRecognition:
 
         return phrases
 
+    async def get_emotion(self, file_path, text, session):
+        file = {'file': open(file_path, 'rb')}
+        r = await session.post(f'{self.emotion_url}/emotion', data=file, params={'text': text})
+        if r.status == 200:
+            emotion = await r.json()
+        else:
+            emotion = None
+
+        return emotion
+
     async def start_recognition(self, func):
         async with aiohttp.ClientSession() as session:
             while self.is_running or self.files_exist:
@@ -32,17 +47,35 @@ class SpeechRecognition:
                     self.files_exist = True
                     files.sort(key=lambda f: int(os.path.splitext(f)[0].split(sep='_')[1]))
                     for f in files:
-                        user_id = os.path.splitext(f)[0].split(sep='_')[0]
+                        filename = os.path.splitext(f)[0].split(sep='_')
+                        user_id = filename[0]
+                        timestamp = datetime.strptime(filename[1], '%Y%m%d%H%M%S').strftime('%Y-%m-%d %H:%M:%S')
+                        time = datetime.strptime(filename[1], '%Y%m%d%H%M%S').strftime('%H:%M:%S')
+                        member = await self.ctx.guild.fetch_member(user_id)
                         file_path = f'{self.folder}/{f}'
+                        audio_duration = AudioSegment.from_file(file_path, format="wav").duration_seconds
                         phrases = await self.recognize(file_path, session)
-                        os.remove(file_path)
-                        for text in phrases:
-                            if func == 'txt':
-                                with open(f'temp_voice/{self.guild_id}.txt', "a") as file:
-                                    member = await self.ctx.guild.fetch_member(user_id)
-                                    file.write(f"<{member.name}>: {text}\n")
-                            if func == 'live':
-                                await self.ctx.send(f"<@{user_id}>: {text}")
+                        if func == 'emotions':
+                            text = " ".join(phrases)
+                            emotion = await self.get_emotion(file_path, text, session)
+                            os.remove(file_path)
+                            with open(f'temp_voice/{self.guild_id}.csv', "a") as file:
+                                try:
+                                    writer = csv.writer(file)
+                                    writer.writerow([timestamp, audio_duration, member.name, emotion, text])
+                                except UnicodeEncodeError as e:
+                                    print(e)
+                        else:
+                            os.remove(file_path)
+                            for text in phrases:
+                                if func == 'txt':
+                                    with open(f'temp_voice/{self.guild_id}.txt', "a") as file:
+                                        try:
+                                            file.write(f"{time} <{member.name}>: {text}\n")
+                                        except UnicodeEncodeError as e:
+                                            print(e)
+                                if func == 'live':
+                                    await self.ctx.send(f"<@{user_id}>: {text}")
                 else:
                     self.files_exist = False
                     await asyncio.sleep(0.3)

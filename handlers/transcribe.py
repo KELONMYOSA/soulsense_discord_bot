@@ -16,7 +16,6 @@ def run(bot):
     async def transcribe_live(ctx):
         if await join(ctx) is None:
             return
-
         await rec_start(ctx, "transcribe_live")
 
     @bot.command()

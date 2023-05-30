@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-from utils.voice_recording import join, rec_start, rec_stop
+from utils.voice_recording import join, rec_start
 
 
 def run(bot):
@@ -9,5 +9,4 @@ def run(bot):
     async def emotions(ctx):
         if await join(ctx) is None:
             return
-
         await rec_start(ctx, "emotions")

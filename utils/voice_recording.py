@@ -2,6 +2,7 @@ import os
 
 import discord
 
+from utils.emotions_report import visualize_report
 from utils.speech_to_text import SpeechRecognition
 from utils.stream_sink import StreamSink
 
@@ -111,9 +112,15 @@ async def send_transcribe_txt(ctx):
 async def send_emotions_report(ctx):
     file_path = f'temp_voice/{ctx.guild.id}.csv'
     try:
-        file = discord.File(file_path)
-        file.filename = 'emotions_report.csv'
-        await ctx.send(file=file)
+        report_path = visualize_report(file_path, ctx.guild.id)
+        for path in report_path:
+            file = discord.File(path)
+            filename = path.replace(f'temp_voice/{ctx.guild.id}_', '')
+            file.filename = filename
+
+            await ctx.send(f"Отчет - {filename.replace('.html', '')}", file=file)
+            os.remove(path)
+
         os.remove(file_path)
     except FileNotFoundError:
         print(f"File emotions_report.csv not found for guild ID-{ctx.guild.id}")

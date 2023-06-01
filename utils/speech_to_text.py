@@ -35,7 +35,7 @@ class SpeechRecognition:
         if r.status == 200:
             emotion = await r.json()
         else:
-            emotion = None
+            emotion = ""
 
         return emotion
 
@@ -55,18 +55,17 @@ class SpeechRecognition:
                         file_path = f'{self.folder}/{f}'
                         audio_duration = AudioSegment.from_file(file_path, format="wav").duration_seconds
                         phrases = await self.recognize(file_path, session)
-                        if func == 'emotions':
+                        if func == 'emotions' and len(phrases) > 0:
                             text = " ".join(phrases)
                             emotion = await self.get_emotion(file_path, text, session)
-                            os.remove(file_path)
-                            with open(f'temp_voice/{self.guild_id}.csv', "a") as file:
-                                try:
-                                    writer = csv.writer(file)
-                                    writer.writerow([timestamp, audio_duration, member.name, emotion, text])
-                                except UnicodeEncodeError as e:
-                                    print(e)
+                            if len(emotion) > 0:
+                                with open(f'temp_voice/{self.guild_id}.csv', "a") as file:
+                                    try:
+                                        writer = csv.writer(file)
+                                        writer.writerow([timestamp, audio_duration, member.name, emotion, text])
+                                    except UnicodeEncodeError as e:
+                                        print(e)
                         else:
-                            os.remove(file_path)
                             for text in phrases:
                                 if func == 'txt':
                                     with open(f'temp_voice/{self.guild_id}.txt', "a") as file:
@@ -76,6 +75,7 @@ class SpeechRecognition:
                                             print(e)
                                 if func == 'live':
                                     await self.ctx.send(f"<@{user_id}>: {text}")
+                        os.remove(file_path)
                 else:
                     self.files_exist = False
                     await asyncio.sleep(0.3)

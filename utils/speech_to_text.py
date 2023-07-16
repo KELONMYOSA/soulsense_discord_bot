@@ -21,7 +21,7 @@ class SpeechRecognition:
 
     async def recognize(self, file_path, session):
         file = {'file': open(file_path, 'rb')}
-        r = await session.post(f'{self.recognition_url}/speech2text', data=file)
+        r = await session.post(f'{self.recognition_url}/speech2text', data=file, ssl=False)
         if r.status == 200:
             phrases = await r.json()
         else:
@@ -31,7 +31,7 @@ class SpeechRecognition:
 
     async def get_emotion(self, file_path, text, session):
         file = {'file': open(file_path, 'rb')}
-        r = await session.post(f'{self.emotion_url}/emotion', data=file, params={'text': text})
+        r = await session.post(f'{self.emotion_url}/emotion', data=file, params={'text': text}, ssl=False)
         if r.status == 200:
             emotion = await r.json()
         else:

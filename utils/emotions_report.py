@@ -209,7 +209,7 @@ class AllUsersData(UserData):
 
 
 def _csv_to_pandas(file_path):
-    file = pd.read_csv(file_path, header=None, encoding='windows-1251')
+    file = pd.read_csv(file_path, header=None)
     file.columns = ["timestamp", "duration", "username", "emotion", "text"]
 
     return file

@@ -40,7 +40,7 @@ class SpeechRecognition:
         return emotion
 
     async def start_recognition(self, func):
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(trust_env=True) as session:
             while self.is_running or self.files_exist:
                 files = [f for f in listdir(self.folder) if isfile(join(self.folder, f))]
                 if len(files) > 0:
